@@ -9,6 +9,16 @@ import (
 
 type Config struct {
 	BotToken string `env:"BOT_TOKEN" env-required:"true"`
+	Env      string `env:"env" env-required:"true"`
+	DB       DB
+}
+
+type DB struct {
+	Host     string `env:"DB_HOST"`
+	Port     string `env:"DB_PORT"`
+	User     string `env:"DB_USER"`
+	Password string `env:"DB_PASSWORD"`
+	Name     string `env:"DB_NAME"`
 }
 
 func Load() (*Config, error) {

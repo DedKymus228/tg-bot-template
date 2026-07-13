@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"tg-bot-template/internal/config"
+	"tg-bot-template/internal/fsm"
+	"tg-bot-template/internal/handlers"
 	"tg-bot-template/internal/storage"
 	"tg-bot-template/internal/telegram"
 	"tg-bot-template/pkg/mylogger"
@@ -25,7 +27,9 @@ func main() {
 	}
 	defer db.ClosePool()
 
-	bot := telegram.New(logger, cfg.BotToken)
+	fsmManager := fsm.NewMemoryFSM()
 
+	bot := telegram.New(logger, fsmManager, cfg.BotToken)
+	handlers.RegisterRoute(bot)
 	bot.Run()
 }

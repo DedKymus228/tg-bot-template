@@ -4,11 +4,11 @@ import (
 	"context"
 	"log"
 	"tg-bot-template/internal/config"
-	"tg-bot-template/internal/fsm"
 	"tg-bot-template/internal/handlers"
-	"tg-bot-template/internal/storage"
-	"tg-bot-template/internal/telegram"
+	"tg-bot-template/pkg/fsm"
 	"tg-bot-template/pkg/mylogger"
+	storage2 "tg-bot-template/pkg/storage"
+	"tg-bot-template/pkg/telegram"
 
 	"go.uber.org/zap"
 )
@@ -21,16 +21,16 @@ func main() {
 
 	logger := mylogger.New(cfg.Env)
 
-	var store storage.Storage
+	var store storage2.Storage
 	if cfg.DBEnabled {
-		db, err := storage.New(context.Background(), logger, cfg.DB)
+		db, err := storage2.New(context.Background(), logger, cfg.DB)
 		if err != nil {
 			logger.Fatal("error connecting to db:", zap.Error(err))
 		}
 		store = db
 		defer db.ClosePool()
 	} else {
-		store = &storage.NoopStorage{}
+		store = &storage2.NoopStorage{}
 	}
 
 	fsmManager := fsm.NewMemoryFSM()

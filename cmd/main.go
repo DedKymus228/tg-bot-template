@@ -21,15 +21,21 @@ func main() {
 
 	logger := mylogger.New(cfg.Env)
 
-	db, err := storage.New(context.Background(), cfg.DB)
-	if err != nil {
-		logger.Fatal("error connecting to db:", zap.Error(err))
+	var store storage.Storage
+	if cfg.DBEnabled {
+		db, err := storage.New(context.Background(), logger, cfg.DB)
+		if err != nil {
+			logger.Fatal("error connecting to db:", zap.Error(err))
+		}
+		store = db
+		defer db.ClosePool()
+	} else {
+		store = &storage.NoopStorage{}
 	}
-	defer db.ClosePool()
 
 	fsmManager := fsm.NewMemoryFSM()
 
 	bot := telegram.New(logger, fsmManager, cfg.BotToken)
-	handlers.RegisterRoute(bot)
+	handlers.RegisterRoute(bot, store)
 	bot.Run()
 }

@@ -9,7 +9,7 @@ type StateManager interface {
 }
 
 type MemoryFSM struct {
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	states map[int64]string
 }
 
@@ -26,9 +26,9 @@ func (m *MemoryFSM) SetState(userID int64, state string) {
 }
 
 func (m *MemoryFSM) GetState(userID int64) string {
-	m.mu.Lock()
+	m.mu.RLock()
 	state := m.states[userID]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	return state
 }
 

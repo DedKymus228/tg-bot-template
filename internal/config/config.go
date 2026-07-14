@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	BotToken string `env:"BOT_TOKEN" env-required:"true"`
-	Env      string `env:"env" env-required:"true"`
-	DB       DB
+	BotToken  string `env:"BOT_TOKEN" env-required:"true"`
+	Env       string `env:"env" env-required:"true"`
+	DBEnabled bool   `env:"DB_ENABLED" env-default:"false"`
+	DB        DB
 }
 
 type DB struct {

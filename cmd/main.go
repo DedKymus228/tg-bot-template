@@ -5,8 +5,10 @@ import (
 	"log"
 	"tg-bot-template/internal/config"
 	"tg-bot-template/internal/handlers"
+	"tg-bot-template/internal/jobs"
 	"tg-bot-template/pkg/fsm"
 	"tg-bot-template/pkg/mylogger"
+	"tg-bot-template/pkg/scheduler"
 	storage2 "tg-bot-template/pkg/storage"
 	"tg-bot-template/pkg/telegram"
 
@@ -38,4 +40,7 @@ func main() {
 	bot := telegram.New(logger, fsmManager, cfg.BotToken)
 	handlers.RegisterRoute(bot, store)
 	bot.Run()
+	
+	cron := scheduler.New(logger)
+	jobs.RegisterJobs(cron, bot, store, logger)
 }

@@ -6,5 +6,9 @@ import (
 )
 
 func RegisterRoute(bot *telegram.Bot, store storage.Storage) {
-	bot.Handle("/start", StartCommand)
+	//commands
+	bot.Handle(startCmd, StartCommand)
+
+	// buttons
+	bot.HandleCallback(testBtn, TestButtonCallback)
 }

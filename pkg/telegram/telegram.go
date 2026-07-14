@@ -12,14 +12,23 @@ import (
 )
 
 type Bot struct {
-	log         *zap.Logger
-	api         *tgbotapi.BotAPI
-	fsm         fsm.StateManager
-	routes      map[string]HandlerFunc
-	stateRoutes map[string]HandlerFunc
+	log            *zap.Logger
+	api            *tgbotapi.BotAPI
+	fsm            fsm.StateManager
+	routes         map[string]HandlerFunc
+	stateRoutes    map[string]HandlerFunc
+	callbackRoutes map[string]HandlerFunc
 }
 
 type HandlerFunc func(api *tgbotapi.BotAPI, update tgbotapi.Update)
+
+func GetKeyboardButtonData(text, data string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(text, data),
+		),
+	)
+}
 
 func New(logger *zap.Logger, stateManager fsm.StateManager, token string) *Bot {
 	api, err := tgbotapi.NewBotAPI(token)
@@ -27,11 +36,12 @@ func New(logger *zap.Logger, stateManager fsm.StateManager, token string) *Bot {
 		log.Fatalf("error with api token")
 	}
 	return &Bot{
-		log:         logger,
-		api:         api,
-		fsm:         stateManager,
-		routes:      make(map[string]HandlerFunc),
-		stateRoutes: make(map[string]HandlerFunc),
+		log:            logger,
+		api:            api,
+		fsm:            stateManager,
+		routes:         make(map[string]HandlerFunc),
+		stateRoutes:    make(map[string]HandlerFunc),
+		callbackRoutes: make(map[string]HandlerFunc),
 	}
 
 }
@@ -44,11 +54,28 @@ func (b *Bot) HandleState(state string, handler HandlerFunc) {
 	b.stateRoutes[state] = handler
 }
 
+func (b *Bot) HandleCallback(callbackData string, handler HandlerFunc) {
+	b.callbackRoutes[callbackData] = handler
+}
+
 func (b *Bot) Run() {
 	go b.Stop()
 	u := tgbotapi.NewUpdate(0)
 	updates := b.api.GetUpdatesChan(u)
 	for update := range updates {
+
+		if update.CallbackQuery != nil {
+			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "")
+			b.api.Request(callback)
+
+			data := update.CallbackQuery.Data
+			if handler, exists := b.callbackRoutes[data]; exists {
+				handler(b.api, update)
+			} else {
+				b.log.Info("Unknown callback:", zap.String("data:", data))
+			}
+			continue
+		}
 		if update.Message == nil {
 			continue
 		}
@@ -80,4 +107,8 @@ func (b *Bot) Stop() {
 	b.log.Info("TG-Bot stopping...")
 	b.api.StopReceivingUpdates()
 
+}
+
+func (b *Bot) API() *tgbotapi.BotAPI {
+	return b.api
 }

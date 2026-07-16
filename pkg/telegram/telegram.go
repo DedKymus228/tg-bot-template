@@ -18,9 +18,11 @@ type Bot struct {
 	routes         map[string]HandlerFunc
 	stateRoutes    map[string]HandlerFunc
 	callbackRoutes map[string]HandlerFunc
+	middlewares    []MiddlewareFunc
 }
 
 type HandlerFunc func(api *tgbotapi.BotAPI, update tgbotapi.Update)
+type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 
 func GetKeyboardButtonData(text, data string) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
@@ -42,6 +44,7 @@ func New(logger *zap.Logger, stateManager fsm.StateManager, token string) *Bot {
 		routes:         make(map[string]HandlerFunc),
 		stateRoutes:    make(map[string]HandlerFunc),
 		callbackRoutes: make(map[string]HandlerFunc),
+		middlewares:    make([]MiddlewareFunc, 0),
 	}
 
 }
@@ -58,6 +61,17 @@ func (b *Bot) HandleCallback(callbackData string, handler HandlerFunc) {
 	b.callbackRoutes[callbackData] = handler
 }
 
+func (b *Bot) UseMW(mw MiddlewareFunc) {
+	b.middlewares = append(b.middlewares, mw)
+}
+
+func (b *Bot) applyMiddlewares(handler HandlerFunc) HandlerFunc {
+	for i := len(b.middlewares) - 1; i >= 0; i-- {
+		handler = b.middlewares[i](handler)
+	}
+	return handler
+}
+
 func (b *Bot) Run() {
 	go b.Stop()
 	u := tgbotapi.NewUpdate(0)
@@ -70,7 +84,8 @@ func (b *Bot) Run() {
 
 			data := update.CallbackQuery.Data
 			if handler, exists := b.callbackRoutes[data]; exists {
-				handler(b.api, update)
+				finalHandler := b.applyMiddlewares(handler)
+				go finalHandler(b.api, update)
 			} else {
 				b.log.Info("Unknown callback:", zap.String("data:", data))
 			}
@@ -86,13 +101,15 @@ func (b *Bot) Run() {
 
 		if currentState != "" {
 			if handler, exists := b.stateRoutes[currentState]; exists {
-				handler(b.api, update)
+				finalHandler := b.applyMiddlewares(handler)
+				go finalHandler(b.api, update)
 				continue
 			}
 		}
 
 		if handler, exists := b.routes[text]; exists {
-			handler(b.api, update)
+			finalHandler := b.applyMiddlewares(handler)
+			go finalHandler(b.api, update)
 		} else {
 			continue
 		}
